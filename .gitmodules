@@ -1,0 +1,3 @@
+[submodule "coap"]
+	path = coap
+	url = https://github.com/openwsn-berkeley/coap.git
