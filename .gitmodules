@@ -4,3 +4,6 @@
 [submodule "openwsn-fw"]
 	path = openwsn-fw
 	url = https://github.com/Neol-d2022/openwsn-fw.git
+[submodule "openwsn-sw"]
+	path = openwsn-sw
+	url = https://github.com/Neol-d2022/openwsn-sw.git
