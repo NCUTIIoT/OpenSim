@@ -1,3 +1,6 @@
 [submodule "coap"]
 	path = coap
 	url = https://github.com/openwsn-berkeley/coap.git
+[submodule "openwsn-fw"]
+	path = openwsn-fw
+	url = https://github.com/Neol-d2022/openwsn-fw.git
