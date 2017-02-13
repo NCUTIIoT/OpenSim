@@ -8,6 +8,7 @@ import logging
 
 from openvisualizer.SimEngine   import SimEngine
 import BspModule
+import sys
 
 class BspLeds(BspModule.BspModule):
     '''
@@ -93,6 +94,18 @@ class BspLeds(BspModule.BspModule):
             returnVal = 0
         
         return returnVal
+    
+    # added by YYS 2017/02/14
+    def cmd_error_blink(self):
+        '''emulates
+           void leds_error_blink()'''
+        
+        # log the activity
+        if self.log.isEnabledFor(logging.DEBUG):
+            self.log.debug('cmd_error_blink')
+        
+        print 'leds_error_blink() is called by BspLeds.py'
+        sys.exit()
     
     # radio LED
     
