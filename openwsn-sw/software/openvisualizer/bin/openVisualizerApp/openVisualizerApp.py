@@ -25,6 +25,8 @@ from openvisualizer.RPL             import RPL
 from openvisualizer.openLbr         import openLbr
 from openvisualizer.openTun         import openTun
 from openvisualizer.RPL             import UDPLatency
+from openvisualizer.RPL             import Blizzard     # YYS 2015/11/19
+from openvisualizer.RPL             import Hurricane    # YYS 2015/12/10
 from openvisualizer.RPL             import topology
 from openvisualizer                 import appdirs
 from openvisualizer.remoteConnectorServer   import remoteConnectorServer
@@ -37,7 +39,7 @@ class OpenVisualizerApp(object):
     top-level functionality for several UI clients.
     '''
     
-    def __init__(self,confdir,datadir,logdir,simulatorMode,numMotes,trace,debug,simTopology,iotlabmotes, pathTopo, roverMode):
+    def __init__(self,confdir,datadir,logdir,simulatorMode,numMotes,trace,debug,simTopology,iotlabmotes, pathTopo, markov, roverMode):
         
         # store params
         self.confdir              = confdir
@@ -50,7 +52,8 @@ class OpenVisualizerApp(object):
         self.iotlabmotes          = iotlabmotes
         self.pathTopo             = pathTopo
         self.errModel             = 'markov2'    # tested by YYS 2016/8/30
-        #self.errModel             = '' 
+        self.markov               = markov
+        #self.errModel             = ''             
         self.roverMode            = roverMode
 
         # local variables
@@ -59,6 +62,8 @@ class OpenVisualizerApp(object):
         self.rpl                  = RPL.RPL()
         self.topology             = topology.topology()
         self.udpLatency           = UDPLatency.UDPLatency()
+        self.blizzard             = Blizzard.Blizzard()    # YYS 2015/11/19
+        self.hurricane            = Hurricane.Hurricane()    # YYS 2015/11/19
         self.DAGrootList          = []
         # create openTun call last since indicates prefix
         self.openTun              = openTun.create() 
@@ -78,6 +83,16 @@ class OpenVisualizerApp(object):
                 print err
                 app.close()
                 os.kill(os.getpid(), signal.SIGTERM)
+        
+        # tested by YYS 2016/8/30
+        if self.errModel == 'markov2' and self.simulatorMode:
+            try:
+                emConfig = open(markov)
+                em = json.load(emConfig)
+            except Exception as err:
+                print err
+                app.close()
+                os.kill(os.getpid(), signal.SIGTERM)   
 
         # tested by YYS 2016/8/30
         if self.errModel == 'markov2' and self.simulatorMode:
@@ -168,6 +183,18 @@ class OpenVisualizerApp(object):
                 self.simengine.propagation.createConnection(fromMote,toMote)
                 self.simengine.propagation.updateConnection(fromMote,toMote,pdr)
 
+            # tested by YYS 2016/8/30
+            if self.errModel == 'markov2':
+                links = em['links']
+                for co2 in links:
+                    fromMote = int(co2['fromMote'])
+                    toMote = int(co2['toMote'])
+                    p00_0 = float(co2['p00_0'])
+                    p01_0 = float(co2['p01_0'])
+                    p10_0 = float(co2['p10_0'])
+                    p11_0 = float(co2['p11_0'])
+                    self.simengine.propagation.createLink(fromMote,toMote,p00_0,p01_0,p10_0,p11_0)
+            
             # tested by YYS 2016/8/30
             if self.errModel == 'markov2':
                 links = em['links']
@@ -347,6 +374,7 @@ def main(parser=None, roverMode=False):
         simTopology     = argspace.simTopology,
         iotlabmotes     = argspace.iotlabmotes,
         pathTopo        = argspace.pathTopo,
+        markov          = argspace.markov,
         roverMode       = roverMode
     )
 
@@ -398,6 +426,12 @@ def _addParserArgs(parser):
         default    = '',
         action     = 'store',
         help       = 'a topology can be loaded from a json file'
+    )
+    parser.add_argument('-m', '--markov', 
+        dest       = 'markov',
+        default    = 'default',
+        action     = 'store',
+        help       = 'a markov definition file'
     )
 
 

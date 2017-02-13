@@ -15,8 +15,11 @@ defaultApps   = [
     'techo',
     'uecho',
     'uinject',
+    'userialbridge',
     'rrt',
     'utyphoon',
+    'ublizzard',
+    'uhurricane',
 ]
 if localEnv['board']=='python':
     defaultApps  += [
@@ -33,7 +36,10 @@ defaultAppsInit   = [
     'techo',
     'uecho',
     'rrt',
+    'uinject',
     'utyphoon',
+    'ublizzard',
+    'uhurricane',
 ]
 
 # additional apps the user wants to build
