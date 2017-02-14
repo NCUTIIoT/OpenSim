@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:40:33.970093.
+This was done on 2017-02-14 21:18:46.331211.
 */
 #ifndef __OPENQUEUE_H
 #define __OPENQUEUE_H
@@ -51,6 +51,7 @@ OpenQueueEntry_t* openqueue_getFreePacketBuffer(OpenMote* self, uint8_t creator)
 owerror_t openqueue_freePacketBuffer(OpenMote* self, OpenQueueEntry_t* pkt);
 void openqueue_removeAllCreatedBy(OpenMote* self, uint8_t creator);
 void openqueue_removeAllOwnedBy(OpenMote* self, uint8_t owner);
+bool openqueue_isHighPriorityEntryEnough(OpenMote* self);
 // called by res
 OpenQueueEntry_t* openqueue_sixtopGetSentPacket(OpenMote* self);
 OpenQueueEntry_t* openqueue_sixtopGetReceivedPacket(OpenMote* self);

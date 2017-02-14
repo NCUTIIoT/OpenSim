@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:44:44.935449.
+This was done on 2017-02-14 21:20:55.844776.
 */
 #include "opendefs_obj.h"
 #include "openqueue_obj.h"
@@ -13,12 +13,16 @@ This was done on 2016-11-14 22:44:44.935449.
 #include "IEEE802154E_obj.h"
 #include "ieee802154_security_driver_obj.h"
 
+
+//=========================== defination =====================================
+
+#define HIGH_PRIORITY_QUEUE_ENTRY 5
+
 //=========================== variables =======================================
 
 // declaration of global variable _openqueue_vars_ removed during objectification.
 
 //=========================== prototypes ======================================
-
 void openqueue_reset_entry(OpenMote* self, OpenQueueEntry_t* entry);
 
 //=========================== public ==========================================
@@ -80,6 +84,12 @@ OpenQueueEntry_t* openqueue_getFreePacketBuffer(OpenMote* self, uint8_t creator)
    }
    
    // if you get here, I will try to allocate a buffer for you
+   
+   // if there is no space left for high priority queue, don't reserve
+   if ( openqueue_isHighPriorityEntryEnough(self)==FALSE && creator>COMPONENT_SIXTOP_RES){
+      ENABLE_INTERRUPTS();
+      return NULL;
+   }
    
    // walk through queue and find free entry
    for (i=0;i<QUEUELENGTH;i++) {
@@ -200,11 +210,30 @@ OpenQueueEntry_t* openqueue_macGetDataPacket(OpenMote* self, open_addr_t* toNeig
    uint8_t i;
    INTERRUPT_DECLARATION();
    DISABLE_INTERRUPTS();
+
+    // first to look the sixtop RES packet
+    for (i=0;i<QUEUELENGTH;i++) {
+       if (
+           (self->openqueue_vars).queue[i].owner==COMPONENT_SIXTOP_TO_IEEE802154E &&
+           (self->openqueue_vars).queue[i].creator==COMPONENT_SIXTOP_RES &&
+           (
+               (
+                   toNeighbor->type==ADDR_64B &&
+ packetfunctions_sameAddress(self, toNeighbor,&(self->openqueue_vars).queue[i].l2_nextORpreviousHop)
+               ) || toNeighbor->type==ADDR_ANYCAST
+           )
+       ){
+          ENABLE_INTERRUPTS();
+          return &(self->openqueue_vars).queue[i];
+       }
+    }
+  
    if (toNeighbor->type==ADDR_64B) {
       // a neighbor is specified, look for a packet unicast to that neigbhbor
       for (i=0;i<QUEUELENGTH;i++) {
          if ((self->openqueue_vars).queue[i].owner==COMPONENT_SIXTOP_TO_IEEE802154E &&
- packetfunctions_sameAddress(self, toNeighbor,&(self->openqueue_vars).queue[i].l2_nextORpreviousHop)) {
+ packetfunctions_sameAddress(self, toNeighbor,&(self->openqueue_vars).queue[i].l2_nextORpreviousHop)
+          ) {
             ENABLE_INTERRUPTS();
             return &(self->openqueue_vars).queue[i];
          }
@@ -228,6 +257,24 @@ OpenQueueEntry_t* openqueue_macGetDataPacket(OpenMote* self, open_addr_t* toNeig
    }
    ENABLE_INTERRUPTS();
    return NULL;
+}
+
+bool openqueue_isHighPriorityEntryEnough(OpenMote* self){
+    uint8_t i;
+    uint8_t numberOfEntry;
+    
+    numberOfEntry = 0;
+    for (i=0;i<QUEUELENGTH;i++) {
+        if((self->openqueue_vars).queue[i].creator>COMPONENT_SIXTOP_RES){
+            numberOfEntry++;
+        }
+    }
+    
+    if (numberOfEntry>QUEUELENGTH-HIGH_PRIORITY_QUEUE_ENTRY){
+        return FALSE;
+    } else {
+        return TRUE;
+    }
 }
 
 OpenQueueEntry_t* openqueue_macGetEBPacket(OpenMote* self) {
@@ -256,6 +303,7 @@ void openqueue_reset_entry(OpenMote* self, OpenQueueEntry_t* entry) {
    entry->length                       = 0;
    //l4
    entry->l4_protocol                  = IANA_UNDEFINED;
+   entry->l4_protocol_compressed       = FALSE;
    //l3
    entry->l3_destinationAdd.type       = ADDR_NONE;
    entry->l3_sourceAdd.type            = ADDR_NONE;

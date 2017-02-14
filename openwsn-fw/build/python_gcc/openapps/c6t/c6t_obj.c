@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:44:50.953961.
+This was done on 2017-02-14 21:21:03.287034.
 */
 /**
 \brief CoAP 6top application.
@@ -97,7 +97,15 @@ owerror_t c6t_receive(OpenMote* self,
             break;
          }
          
- sixtop_setHandler(self, SIX_HANDLER_SF0);
+         if ( sixtop_setHandler(self, SIX_HANDLER_SF0)==FALSE){
+            // one sixtop transcation is happening, only one instance at one time
+            
+            // set the CoAP header
+            coap_header->Code             = COAP_CODE_RESP_CHANGED;
+           
+            outcome                       = E_FAIL;
+            break;
+         }
          // call sixtop
  sixtop_request(self, 
             IANA_6TOP_CMD_ADD,
@@ -126,7 +134,15 @@ owerror_t c6t_receive(OpenMote* self,
             break;
          }
          
- sixtop_setHandler(self, SIX_HANDLER_SF0);
+         if ( sixtop_setHandler(self, SIX_HANDLER_SF0)==FALSE){
+            // one sixtop transcation is happening, only one instance at one time
+            
+            // set the CoAP header
+            coap_header->Code             = COAP_CODE_RESP_CHANGED;
+           
+            outcome                       = E_FAIL;
+            break;
+         }
          // call sixtop
  sixtop_request(self, 
             IANA_6TOP_CMD_DELETE,

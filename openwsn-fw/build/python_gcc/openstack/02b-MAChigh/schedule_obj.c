@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:43:53.004863.
+This was done on 2017-02-14 21:19:57.721675.
 */
 #include "opendefs_obj.h"
 #include "schedule_obj.h"
@@ -301,7 +301,7 @@ owerror_t schedule_addActiveSlot(OpenMote* self,
    // abort it schedule overflow
    if (slotContainer>&(self->schedule_vars).scheduleBuf[(self->schedule_vars).maxActiveSlots-1]) {
       ENABLE_INTERRUPTS();
- openserial_printCritical(self, 
+ openserial_printError(self, 
          COMPONENT_SCHEDULE,ERR_SCHEDULE_OVERFLOWN,
          (errorparameter_t)0,
          (errorparameter_t)0
@@ -357,6 +357,12 @@ owerror_t schedule_addActiveSlot(OpenMote* self,
                (errorparameter_t)slotContainer->slotOffset,
                (errorparameter_t)0
             );
+            // reset the entry
+            slotContainer->slotOffset                = 0;
+            slotContainer->type                      = CELLTYPE_OFF;
+            slotContainer->shared                    = FALSE;
+            slotContainer->channelOffset             = 0;
+            memset(&slotContainer->neighbor,0,sizeof(open_addr_t));
             ENABLE_INTERRUPTS();
             return E_FAIL;
          }
@@ -468,32 +474,6 @@ bool schedule_isSlotOffsetAvailable(OpenMote* self, uint16_t slotOffset){
    ENABLE_INTERRUPTS();
    
    return TRUE;
-}
-
-scheduleEntry_t* schedule_statistic_poorLinkQuality(OpenMote* self){
-   scheduleEntry_t* scheduleWalker;
-   
-   INTERRUPT_DECLARATION();
-   DISABLE_INTERRUPTS();
-   
-   scheduleWalker = (self->schedule_vars).currentScheduleEntry;
-   do {
-      if(
-         scheduleWalker->numTx > MIN_NUMTX_FOR_PDR                     &&\
-         PDR_THRESHOLD > 100*scheduleWalker->numTxACK/scheduleWalker->numTx
-      ){
-         break;
-      }
-      scheduleWalker = scheduleWalker->next;
-   }while(scheduleWalker!=(self->schedule_vars).currentScheduleEntry);
-   
-   if (scheduleWalker == (self->schedule_vars).currentScheduleEntry){
-       ENABLE_INTERRUPTS();
-       return NULL;
-   } else {
-       ENABLE_INTERRUPTS();
-       return scheduleWalker;
-   }
 }
 
 uint16_t schedule_getCellsCounts(OpenMote* self, uint8_t frameID,cellType_t type, open_addr_t* neighbor){
@@ -850,6 +830,34 @@ void schedule_indicateTx(OpenMote* self, asn_t* asnTimestamp, bool succesfullTx)
    }
    
    ENABLE_INTERRUPTS();
+}
+
+
+void schedule_housekeeping(OpenMote* self){
+    uint8_t     i;
+    open_addr_t neighbor;
+    
+    
+    INTERRUPT_DECLARATION();
+    DISABLE_INTERRUPTS();
+
+    for(i=0;i<MAXACTIVESLOTS;i++) {
+        if((self->schedule_vars).scheduleBuf[i].type == CELLTYPE_TX){
+            // remove Tx cell if it's scheduled to non-preferred parent
+            if ( icmpv6rpl_getPreferredParentEui64(self, &neighbor)==TRUE) {
+                if( packetfunctions_sameAddress(self, &neighbor,&((self->schedule_vars).scheduleBuf[i].neighbor))==FALSE){
+                    if ( sixtop_setHandler(self, SIX_HANDLER_SF0)==FALSE){
+                       // one sixtop transcation is happening, only one instance at one time
+                       continue;
+                    }
+ sixtop_request(self, IANA_6TOP_CMD_CLEAR,&((self->schedule_vars).scheduleBuf[i].neighbor),1);
+                    break;
+                }
+            }
+        }
+    }
+   
+    ENABLE_INTERRUPTS();
 }
 
 //=========================== private =========================================

@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:45:05.357716.
+This was done on 2017-02-14 21:21:20.115482.
 */
 /**
 \brief Definition of the "openserial" driver.
@@ -635,8 +635,11 @@ void openserial_handleCommands(OpenMote* self){
             if (foundNeighbor==FALSE) {
                 break;
             }
-             
- sixtop_setHandler(self, SIX_HANDLER_SF0);
+            
+            if ( sixtop_setHandler(self, SIX_HANDLER_SF0)==FALSE){
+                // one sixtop transcation is happening, only one instance at one time
+                return;
+            }
             if ( 
                 (
                   commandId != COMMAND_SET_6P_ADD &&

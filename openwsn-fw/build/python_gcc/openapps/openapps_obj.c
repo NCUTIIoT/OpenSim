@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:44:50.541753.
+This was done on 2017-02-14 21:21:01.784171.
 */
 /**
 \brief Applications running on top of the OpenWSN stack.
@@ -27,6 +27,7 @@ This was done on 2016-11-14 22:44:50.541753.
 // UDP
 #include "uecho_obj.h"
 #include "uinject_obj.h"
+#include "utyphoon_obj.h"
 
 //=========================== variables =======================================
 
@@ -48,5 +49,7 @@ void openapps_init(OpenMote* self) {
    // TCP
  techo_init(self);
    // UDP
-// uecho_init(self);
+ uecho_init(self);
+   // uinject_init(self);
+ utyphoon_init(self);
 }

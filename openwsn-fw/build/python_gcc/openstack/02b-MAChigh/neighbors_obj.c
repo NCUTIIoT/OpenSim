@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:43:45.191245.
+This was done on 2017-02-14 21:19:48.674859.
 */
 #include "opendefs_obj.h"
 #include "neighbors_obj.h"
@@ -100,7 +100,11 @@ open_addr_t* neighbors_getKANeighbor(OpenMote* self, uint16_t kaPeriod) {
       }
    }
    return NULL;
- }
+}
+
+bool neighbors_getNeighborNoResource(OpenMote* self, uint8_t index){
+    return (self->neighbors_vars).neighbors[index].f6PNORES;
+}
 
 //===== interrogators
 
@@ -365,6 +369,22 @@ void neighbors_setNeighborRank(OpenMote* self, uint8_t index, dagrank_t rank) {
 
 }
 
+void neighbors_setNeighborNoResource(OpenMote* self, open_addr_t* address){
+   uint8_t i;
+   
+   // loop through neighbor table
+   for (i=0;i<MAXNUMNEIGHBORS;i++) {
+      if ( isThisRowMatching(self, address,i)) {
+          (self->neighbors_vars).neighbors[i].f6PNORES = TRUE;
+          break;
+      }
+   }
+}
+
+void neighbors_setPreferredParent(OpenMote* self, uint8_t index, bool isPreferred){
+    (self->neighbors_vars).neighbors[index].parentPreference = isPreferred;
+}
+
 //===== managing routing info
 
 /**
@@ -382,11 +402,12 @@ uint16_t neighbors_getLinkMetric(OpenMote* self, uint8_t index) {
    if ((self->neighbors_vars).neighbors[index].numTxACK==0) {
       rankIncrease = DEFAULTLINKCOST*2*MINHOPRANKINCREASE;
    } else {
-      //6TiSCH minimal draft using OF0 for rank computation
+      //6TiSCH minimal draft using OF0 for rank computation: ((3*numTx/numTxAck)-2)*minHopRankIncrease
       // numTx is on 8 bits, so scaling up 10 bits won't lead to saturation
       // but this <<10 followed by >>10 does not provide any benefit either. Result is the same.
       rankIncreaseIntermediary = (((uint32_t)(self->neighbors_vars).neighbors[index].numTx) << 10);
-      rankIncreaseIntermediary = (rankIncreaseIntermediary * 2 * MINHOPRANKINCREASE) / ((uint32_t)(self->neighbors_vars).neighbors[index].numTxACK);
+      rankIncreaseIntermediary = (3*rankIncreaseIntermediary * MINHOPRANKINCREASE) / ((uint32_t)(self->neighbors_vars).neighbors[index].numTxACK);
+      rankIncreaseIntermediary = rankIncreaseIntermediary - ((uint32_t)(2 * MINHOPRANKINCREASE)<<10);
       // this could still overflow for numTx large and numTxAck small, Casting to 16 bits will yiel the least significant bits
       if (rankIncreaseIntermediary >= (65536<<10)) {
          rankIncrease = 65535;
@@ -400,26 +421,91 @@ uint16_t neighbors_getLinkMetric(OpenMote* self, uint8_t index) {
 //===== maintenance
 
 void neighbors_removeOld(OpenMote* self) {
-   uint8_t    i, j;
-   uint16_t   timeSinceHeard;
-   bool       haveParent;
+    uint8_t    i, j;
+    bool       haveParent;
+    uint8_t    neighborIndexWithLowestRank[3];
+    dagrank_t  lowestRank;
+    // neighbors marked as NO_RES will never removed.
+    
+    // first round
+    lowestRank = MAXDAGRANK;
+    for (i=0;i<MAXNUMNEIGHBORS;i++) {
+        if ((self->neighbors_vars).neighbors[i].used==1) {
+            if (
+                lowestRank>(self->neighbors_vars).neighbors[i].DAGrank && 
+                (self->neighbors_vars).neighbors[i].f6PNORES == FALSE
+            ){
+                lowestRank = (self->neighbors_vars).neighbors[i].DAGrank;
+                neighborIndexWithLowestRank[0] = i;
+            }
+        }
+    }
+    
+    if (lowestRank==MAXDAGRANK){
+        // none of the neighbors have rank yet
+        return;
+    }
    
-   for (i=0;i<MAXNUMNEIGHBORS;i++) {
-      if ((self->neighbors_vars).neighbors[i].used==1) {
-         timeSinceHeard = ieee154e_asnDiff(self, &(self->neighbors_vars).neighbors[i].asn);
-         if (timeSinceHeard>DESYNCTIMEOUT) {
-            haveParent = icmpv6rpl_getPreferredParentIndex(self, &j);
-            if (haveParent && (i==j)) { // this is our preferred parent, carefull!
+    // second round
+    lowestRank = MAXDAGRANK;
+    for (i=0;i<MAXNUMNEIGHBORS;i++) {
+        if ((self->neighbors_vars).neighbors[i].used==1) {
+            if (
+                lowestRank>(self->neighbors_vars).neighbors[i].DAGrank &&
+                i != neighborIndexWithLowestRank[0]           && 
+                (self->neighbors_vars).neighbors[i].f6PNORES == FALSE
+            ){
+                lowestRank = (self->neighbors_vars).neighbors[i].DAGrank;
+                neighborIndexWithLowestRank[1] = i;
+            }
+        }
+    }
+   
+    if (lowestRank==MAXDAGRANK){
+        // only one neighbor has rank
+        return;
+    }
+   
+    // third round
+    lowestRank = MAXDAGRANK;
+    for (i=0;i<MAXNUMNEIGHBORS;i++) {
+        if ((self->neighbors_vars).neighbors[i].used==1) {
+            if (
+                lowestRank>(self->neighbors_vars).neighbors[i].DAGrank &&
+                i != neighborIndexWithLowestRank[0]           &&
+                i != neighborIndexWithLowestRank[1]           && 
+                (self->neighbors_vars).neighbors[i].f6PNORES == FALSE
+            ){
+                lowestRank = (self->neighbors_vars).neighbors[i].DAGrank;
+                neighborIndexWithLowestRank[2] = i;
+            }
+        }
+    }
+    
+    if (lowestRank==MAXDAGRANK){
+        // only two neighbors have rank
+        return;
+    }
+    
+    // remove all neighbors except the ones that f6PNORES flag is set or is recorded as lowest 3 rank neighbors
+    for (i=0;i<MAXNUMNEIGHBORS;i++) {
+        if ((self->neighbors_vars).neighbors[i].used==1) {
+            if (
+                i!= neighborIndexWithLowestRank[0] &&
+                i!= neighborIndexWithLowestRank[1] &&
+                i!= neighborIndexWithLowestRank[2]
+            ) {
+                haveParent = icmpv6rpl_getPreferredParentIndex(self, &j);
+                if (haveParent && (i==j)) { // this is our preferred parent, carefull!
  icmpv6rpl_killPreferredParent(self);
- removeNeighbor(self, i);
  icmpv6rpl_updateMyDAGrankAndParentSelection(self);
-            }
-            else {
+                }
+                if ((self->neighbors_vars).neighbors[i].f6PNORES == FALSE){
  removeNeighbor(self, i);
+                }
             }
-         }
-      }
-   } 
+        }
+    }
 }
 
 //===== debug
@@ -519,6 +605,7 @@ void removeNeighbor(OpenMote* self, uint8_t neighborIndex) {
    (self->neighbors_vars).neighbors[neighborIndex].asn.bytes0and1            = 0;
    (self->neighbors_vars).neighbors[neighborIndex].asn.bytes2and3            = 0;
    (self->neighbors_vars).neighbors[neighborIndex].asn.byte4                 = 0;
+   (self->neighbors_vars).neighbors[neighborIndex].f6PNORES                  = FALSE;
 }
 
 //=========================== helpers =========================================

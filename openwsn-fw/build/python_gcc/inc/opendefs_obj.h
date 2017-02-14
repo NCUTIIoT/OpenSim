@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:40:17.942259.
+This was done on 2017-02-14 21:18:29.160008.
 */
 /**
 \brief General OpenWSN definitions
@@ -99,8 +99,9 @@ enum {
    //UDP
    WKP_UDP_COAP                        =    5683,
    WKP_UDP_ECHO                        =       7,
-   WKP_UDP_INJECT                      =    2000,
+   WKP_UDP_INJECT                      =   61617,// 0xf0b1
    WKP_UDP_RINGMASTER                  =   15000,
+   WKP_UDP_TYPHOON                     =   15001,
    WKP_UDP_SERIALBRIDGE                =    2001,
 };
 
@@ -137,6 +138,8 @@ enum {
    COMPONENT_IEEE802154                = 0x08,
    COMPONENT_IEEE802154E               = 0x09,
    
+   COMPONENT_UTYPHOON                  = 0x27,
+
    // all components with higher component id than COMPONENT_IEEE802154E
    // won't be able to get free packets from the queue 
    // when the mote is not synch
@@ -192,7 +195,7 @@ enum {
    ERR_RCVD_ECHO_REPLY                 = 0x02, // received an echo reply
    ERR_GETDATA_ASKS_TOO_FEW_BYTES      = 0x03, // getData asks for too few bytes, maxNumBytes={0}, fill level={1}
    ERR_INPUT_BUFFER_OVERFLOW           = 0x04, // the input buffer has overflown
-   ERR_COMMAND_NOT_ALLOWED             = 0x05, // the command is not allowerd, command = {0} 
+   ERR_COMMAND_NOT_ALLOWED             = 0x05, // the command is not allowed, command = {0} 
    // l4
    ERR_WRONG_TRAN_PROTOCOL             = 0x06, // unknown transport protocol {0} (code location {1})
    ERR_WRONG_TCP_STATE                 = 0x07, // wrong TCP state {0} (code location {1})
@@ -357,6 +360,7 @@ typedef struct {
    uint8_t          numWraps;//number of times the tx counter wraps. can be removed if memory is a restriction. also check openvisualizer then.
    asn_t            asn;
    uint8_t          joinPrio;
+   bool             f6PNORES;
 } neighborRow_t;
 END_PACK
 

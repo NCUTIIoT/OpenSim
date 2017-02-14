@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:45:02.355594.
+This was done on 2017-02-14 21:21:16.889422.
 */
 /**
 \brief OpenOS scheduler.
@@ -45,12 +45,17 @@ void scheduler_start(OpenMote* self) {
       while((self->scheduler_vars).task_list!=NULL) {
          // there is still at least one task in the linked-list of tasks
          
+    	 INTERRUPT_DECLARATION();
+    	 DISABLE_INTERRUPTS();
+
          // the task to execute is the one at the head of the queue
          pThisTask                = (self->scheduler_vars).task_list;
          
          // shift the queue by one task
          (self->scheduler_vars).task_list = pThisTask->next;
          
+         ENABLE_INTERRUPTS();
+
          // execute the current task
          pThisTask->cb(self);
          
@@ -95,7 +100,7 @@ void scheduler_start(OpenMote* self) {
    // find position in queue
    taskListWalker                 = &(self->scheduler_vars).task_list;
    while (*taskListWalker!=NULL &&
-          (*taskListWalker)->prio < taskContainer->prio) {
+          (*taskListWalker)->prio <= taskContainer->prio) {
       taskListWalker              = (taskList_item_t**)&((*taskListWalker)->next);
    }
    // insert at that position

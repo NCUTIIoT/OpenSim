@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:40:42.845529.
+This was done on 2017-02-14 21:18:55.965509.
 */
 /**
 \brief Definitions for IEEE802154_security driver
@@ -31,6 +31,7 @@ This was done on 2016-11-14 22:40:42.845529.
 #define IEEE802154_SECURITY_TAG_LEN          IEEE802154_SECURITY.authenticationTagLen(IEEE802154_SECURITY_LEVEL)
 #define IEEE802154_SECURITY_HEADER_LEN       IEEE802154_SECURITY.auxiliaryHeaderLen(IEEE802154_SECURITY_KEYIDMODE, IEEE154_ASH_FRAMECOUNTER_SUPPRESSED, 5) // For TSCH we always use implicit 5 byte ASN as Frame Counter
 #define IEEE802154_SECURITY_TOTAL_OVERHEAD   IEEE802154_SECURITY_TAG_LEN + IEEE802154_SECURITY_HEADER_LEN
+#define IEEE802154_SECURITY_MINIMAL_PROC     0                                // minimal processing for efficiency
 #else /* L2_SECURITY_ACTIVE */
 #define IEEE802154_SECURITY                  IEEE802154_dummy_security        // dummy implementation that always returns success
 #define IEEE802154_SECURITY_SUPPORTED        0
@@ -42,6 +43,7 @@ This was done on 2016-11-14 22:40:42.845529.
 #define IEEE802154_SECURITY_TAG_LEN          0
 #define IEEE802154_SECURITY_HEADER_LEN       0
 #define IEEE802154_SECURITY_TOTAL_OVERHEAD   0
+#define IEEE802154_SECURITY_MINIMAL_PROC     0
 #endif /* L2_SECURITY_ACTIVE */
 
 //=========================== module variables ================================

@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:40:39.023298.
+This was done on 2017-02-14 21:18:51.852915.
 */
 #ifndef __SCHEDULE_H
 #define __SCHEDULE_H
@@ -186,8 +186,6 @@ owerror_t schedule_removeActiveSlot(OpenMote* self,
    open_addr_t*         neighbor
 );
 bool schedule_isSlotOffsetAvailable(OpenMote* self, uint16_t slotOffset);
-// return the slot info which has a poor quality
-scheduleEntry_t* schedule_statistic_poorLinkQuality(OpenMote* self);
 uint16_t schedule_getCellsCounts(OpenMote* self, 
     uint8_t frameID,
     cellType_t type,
@@ -218,6 +216,7 @@ void schedule_indicateTx(OpenMote* self,
                         bool      succesfullTx
                    );
 
+void schedule_housekeeping(OpenMote* self);
 /**
 \}
 \}

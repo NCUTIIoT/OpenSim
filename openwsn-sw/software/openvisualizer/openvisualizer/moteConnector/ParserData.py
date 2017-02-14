@@ -76,47 +76,6 @@ class ParserData(Parser.Parser):
         if log.isEnabledFor(logging.DEBUG):
             log.debug("packet without source,dest and asn {0}".format(input))
         
-
-        # start -- trick for utyphoon
-        # example packet. The last 17 bytes is the application payload.
-        # [241, 130, 5, 7, 232, 122, 17, 17, 20, 21, 146, 204, 0, 0, 0, 2, 20, 21, 146, 204, 0, 0, 0, 1, 
-        # 58, 153, 58, 153, 0, 25, 125, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-        # port 15001==0x3a,0x99
-        if (len(input) >31):
-           if (input[len(input)-23]==58 and input[len(input)-22]==153):
-               aux      = input[len(input)-5:]               # last 5 bytes of the packet are the ASN in the UDP packet
-               diff     = self._asndiference(aux, asnbytes)  # calculate difference 
-               timeinms = diff*self.MSPERSLOT                # compute time in ms
-               SN       = struct.unpack('<I', bytearray(input[len(input)-5:len(input)-1]))[0]
-               data_4B  = struct.unpack('<I', bytearray(input[len(input)-9:len(input)-5]))[0]
-               node     = input[len(input)-17:len(input)-9] # the node address
-
-               #print 'ASN of Mote = ' + repr(aux)
-               #print 'ASN of Sink = ' + repr(asnbytes)
-               #print 'Transmission time (ms) = ' + repr(timeinms)
-               #print 'SN = ' + repr(SN)
-               print 'data_4B = ' + repr(data_4B)
-               #print 'node = ' + str(node)
-               fn = 'log_data_pkt_from_' + str(node[6]*256+node[7])+ '.txt'
-               f = open(fn,'a')
-               f.write(repr(data_4B)+'\n')
-               f.close()
-
-               if (diff<0xFFFFFFFF):
-               # notify latency manager component. only if a valid value
-                  dispatcher.send(
-                     sender        = 'parserData',
-                     signal        = 'typhoon',
-                     data          = (node,data_4B,SN,timeinms),
-                  )
-               else:
-                   # this usually happens when the serial port framing is not correct and more than one message is parsed at the same time. this will be solved with HDLC framing.
-                   print "Wrong latency computation {0} = {1} mS".format(str(node),timeinms)
-                   print ",".join(hex(c) for c in input)
-                   log.warning("Wrong latency computation {0} = {1} mS".format(str(node),timeinms))
-                   pass
-        # end -- trick for utyphoon
-        
         # when the packet goes to internet it comes with the asn at the beginning as timestamp.
          
         # cross layer trick here. capture UDP packet from udpLatency and get ASN to compute latency.
@@ -182,3 +141,18 @@ class ParserData(Parser.Parser):
               diff = 0xFFFFFFFF
        
        return diff
+
+    def _subfinder(self,list,pattern):
+        matches = []
+        for i in range(len(list)):
+            if list[i] == pattern[0] and list[i:i+len(pattern)] == pattern:
+                return i+len(pattern)
+        return -1
+
+    def _check(self,list,pattern,t):
+        for i in range(t):
+            if (self._subfinder(list, pattern) > 0):
+                list = list[self._subfinder(list,pattern):]
+            else:
+                list = []
+        return list

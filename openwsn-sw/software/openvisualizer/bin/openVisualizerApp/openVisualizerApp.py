@@ -28,6 +28,7 @@ from openvisualizer.RPL             import UDPLatency
 from openvisualizer.RPL             import topology
 from openvisualizer                 import appdirs
 from openvisualizer.remoteConnectorServer   import remoteConnectorServer
+from openvisualizer.Application     import ga
 
 import openvisualizer.openvisualizer_utils as u
     
@@ -59,6 +60,7 @@ class OpenVisualizerApp(object):
         self.rpl                  = RPL.RPL()
         self.topology             = topology.topology()
         self.udpLatency           = UDPLatency.UDPLatency()
+        self.ga                   = ga.Ga()
         self.DAGrootList          = []
         # create openTun call last since indicates prefix
         self.openTun              = openTun.create() 

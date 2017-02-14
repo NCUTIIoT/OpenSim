@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:43:06.556363.
+This was done on 2017-02-14 21:19:03.427437.
 */
 #ifndef __OPENUDP_H
 #define __OPENUDP_H
@@ -45,7 +45,7 @@ enum UDP_PORTS_enums {
 typedef struct {
    uint16_t port_src;
    uint16_t port_dest;
-   uint16_t length;
+   uint16_t length; // this should not be here. See RFC6282 section 4.3.3.
    uint16_t checksum;
 } udp_ht;
 

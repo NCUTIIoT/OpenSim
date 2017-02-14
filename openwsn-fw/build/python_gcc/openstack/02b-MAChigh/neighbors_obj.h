@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:40:31.610737.
+This was done on 2017-02-14 21:18:43.743925.
 */
 #ifndef __NEIGHBORS_H
 #define __NEIGHBORS_H
@@ -72,8 +72,11 @@ dagrank_t neighbors_getNeighborRank(OpenMote* self, uint8_t index);
 uint8_t neighbors_getNumNeighbors(OpenMote* self);
 uint16_t neighbors_getLinkMetric(OpenMote* self, uint8_t index);
 open_addr_t* neighbors_getKANeighbor(OpenMote* self, uint16_t kaPeriod);
+bool neighbors_getNeighborNoResource(OpenMote* self, uint8_t index);
 // setters
 void neighbors_setNeighborRank(OpenMote* self, uint8_t index, dagrank_t rank);
+void neighbors_setNeighborNoResource(OpenMote* self, open_addr_t* address);
+void neighbors_setPreferredParent(OpenMote* self, uint8_t index, bool isPreferred);
 
 // interrogators
 bool neighbors_isStableNeighbor(OpenMote* self, open_addr_t* address);

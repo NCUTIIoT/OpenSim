@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:40:40.573672.
+This was done on 2017-02-14 21:18:53.530806.
 */
 #ifndef __SF0_H
 #define __SF0_H
@@ -26,6 +26,7 @@ This was done on 2016-11-14 22:40:40.573672.
 
 typedef struct {
    uint8_t numAppPacketsPerSlotFrame;
+   uint8_t backoff;
 } sf0_vars_t;
 
 //=========================== module variables ================================
@@ -43,6 +44,8 @@ void sf0_notif_removedCell(OpenMote* self);
 // notification from schedule
 void sf0_notifyNewSlotframe(OpenMote* self);
 void      sf0_appPktPeriod(uint8_t numAppPacketsPerSlotFrame);
+
+void sf0_setBackoff(OpenMote* self, uint8_t value);
 /**
 \}
 \}

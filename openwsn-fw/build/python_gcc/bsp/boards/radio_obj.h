@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:43:29.848572.
+This was done on 2017-02-14 21:19:31.745597.
 */
 #ifndef __RADIO_H
 #define __RADIO_H
@@ -79,11 +79,14 @@ void radio_setFrequency(OpenMote* self, uint8_t frequency);
 void radio_rfOn(OpenMote* self);
 void radio_rfOff(OpenMote* self);
 // TX
-void radio_loadPacket(OpenMote* self, uint8_t* packet, uint8_t len);
+void                radio_loadPacket_prepare(uint8_t* packet, uint8_t len);
+void radio_loadPacket(OpenMote* self, uint8_t* packet, uint16_t len);
 void radio_txEnable(OpenMote* self);
 void radio_txNow(OpenMote* self);
 // RX
+void                radio_rxPacket_prepare(void);
 void radio_rxEnable(OpenMote* self);
+void                radio_rxEnable_scum(void);
 void radio_rxNow(OpenMote* self);
 void radio_getReceivedFrame(OpenMote* self, uint8_t* bufRead,
                                 uint8_t* lenRead,

@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:43:30.673726.
+This was done on 2017-02-14 21:19:32.643943.
 */
 #ifndef __RADIOTIMER_H
 #define __RADIOTIMER_H
@@ -26,6 +26,23 @@ This was done on 2016-11-14 22:43:30.673726.
 #include "board_obj.h"
 
 //=========================== define ==========================================
+#ifdef SLOT_FSM_IMPLEMENTATION_MULTIPLE_TIMER_INTERRUPT
+
+enum radiotimer_action_enum {
+    // action items
+    ACTION_LOAD_PACKET                     = 0x01,
+    ACTION_SEND_PACKET                     = 0x02,
+    ACTION_RADIORX_ENABLE                  = 0x03,
+    ACTION_NORMAL_TIMER                    = 0x04,
+    ACTION_TX_SFD_DONE                     = 0x05,
+    ACTION_RX_SFD_DONE                     = 0x06,
+    ACTION_TX_SEND_DONE                    = 0x07,
+    ACTION_RX_DONE                         = 0x08,
+    ACTION_ALL_RADIOTIMER_INTERRUPT        = 0x09,
+};
+
+#else
+#endif
 
 //=========================== typedef =========================================
 
@@ -51,8 +68,14 @@ PORT_RADIOTIMER_WIDTH radiotimer_getValue(OpenMote* self);
 void radiotimer_setPeriod(OpenMote* self, PORT_RADIOTIMER_WIDTH period);
 PORT_RADIOTIMER_WIDTH radiotimer_getPeriod(OpenMote* self);
 // compare
+#ifdef SLOT_FSM_IMPLEMENTATION_MULTIPLE_TIMER_INTERRUPT
+void radiotimer_schedule(OpenMote* self, uint8_t type,PORT_RADIOTIMER_WIDTH offset);
+void radiotimer_cancel(OpenMote* self, uint8_t type);
+void     radiotimer_setCapture(uint8_t type);
+#else
 void radiotimer_schedule(OpenMote* self, PORT_RADIOTIMER_WIDTH offset);
 void radiotimer_cancel(OpenMote* self);
+#endif
 // capture
 PORT_RADIOTIMER_WIDTH radiotimer_getCapturedTime(OpenMote* self);
 

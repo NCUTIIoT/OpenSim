@@ -157,9 +157,10 @@ class eventBusClient(object):
     def _dispatchProtocol(self,signal,data):
         ''' used to sent to the eventBus a signal and look whether someone responds or not'''
         temp = self.dispatch(
-              signal       = signal,
-              data         = data,
+            signal       = signal,
+            data         = data,
         )
+
         for (function,returnVal) in temp:
             if returnVal is not None:
                 if log.isEnabledFor(logging.DEBUG):

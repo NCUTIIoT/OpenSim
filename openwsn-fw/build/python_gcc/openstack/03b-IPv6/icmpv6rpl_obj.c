@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:44:25.294079.
+This was done on 2017-02-14 21:20:33.199301.
 */
 #include "opendefs_obj.h"
 #include "icmpv6rpl_obj.h"
@@ -25,8 +25,6 @@ This was done on 2016-11-14 22:44:25.294079.
 
 //=========================== prototypes ======================================
 
-// routing-related
-void icmpv6rpl_updateMyDAGrankAndParentSelection(OpenMote* self);
 // DIO-related
 void icmpv6rpl_timer_DIO_cb(OpenMote* self, opentimer_id_t id);
 void icmpv6rpl_timer_DIO_task(OpenMote* self);
@@ -291,10 +289,14 @@ bool icmpv6rpl_getPreferredParentIndex(OpenMote* self, uint8_t* indexptr) {
 \param[out] addressToWrite Where to copy the preferred parent's address to.
 */
 bool icmpv6rpl_getPreferredParentEui64(OpenMote* self, open_addr_t* addressToWrite) {
-   if ((self->icmpv6rpl_vars).haveParent){
-       return neighbors_getNeighborEui64(self, addressToWrite,ADDR_64B,(self->icmpv6rpl_vars).ParentIndex);
-   }
-   else return FALSE;
+    if (
+        (self->icmpv6rpl_vars).haveParent && 
+ neighbors_getNeighborNoResource(self, (self->icmpv6rpl_vars).ParentIndex)==FALSE
+    ){
+        return neighbors_getNeighborEui64(self, addressToWrite,ADDR_64B,(self->icmpv6rpl_vars).ParentIndex);
+    } else {
+        return FALSE;
+    }
 }
 
 /**
@@ -347,75 +349,98 @@ void icmpv6rpl_setMyDAGrank(OpenMote* self, dagrank_t rank){
 \brief Routing algorithm
 */
 void icmpv6rpl_updateMyDAGrankAndParentSelection(OpenMote* self) {
-   uint8_t   i;
-   uint16_t  previousDAGrank;
-   uint16_t  prevRankIncrease;
-   uint8_t   prevParentIndex;
-   bool      prevHadParent;
-   bool      foundBetterParent;
-   // temporaries
-   uint16_t  rankIncrease;
-   dagrank_t neighborRank;
-   uint32_t  tentativeDAGrank;
+    uint8_t   i;
+    uint16_t  previousDAGrank;
+    uint16_t  prevRankIncrease;
+    uint8_t   prevParentIndex;
+    bool      prevHadParent;
+    bool      foundBetterParent;
+    // temporaries
+    uint16_t  rankIncrease;
+    dagrank_t neighborRank;
+    uint32_t  tentativeDAGrank;
    
-   // if I'm a DAGroot, my DAGrank is always MINHOPRANKINCREASE
-   if (( idmanager_getIsDAGroot(self))==TRUE) {
-       // the dagrank is not set through setting command, set rank to MINHOPRANKINCREASE here 
-       if ((self->icmpv6rpl_vars).myDAGrank!=MINHOPRANKINCREASE) { // test for change so as not to report unchanged value when root
-           (self->icmpv6rpl_vars).myDAGrank=MINHOPRANKINCREASE;
-           return;
-       }
-   }
-
-   // prep for loop, remember state before neighbor table scanning
-   previousDAGrank      = (self->icmpv6rpl_vars).myDAGrank;
-   prevParentIndex      = (self->icmpv6rpl_vars).ParentIndex;
-   prevHadParent        = (self->icmpv6rpl_vars).haveParent;
-   prevRankIncrease     = (self->icmpv6rpl_vars).rankIncrease;
-   foundBetterParent    = FALSE;
-   (self->icmpv6rpl_vars).haveParent = FALSE;
-   
-   // loop through neighbor table, update myDAGrank
-   for (i=0;i<MAXNUMNEIGHBORS;i++) {
-      if ( neighbors_isStableNeighborByIndex(self, i)) { // in use and link is stable
-         // get link cost to this neighbor
-         rankIncrease= neighbors_getLinkMetric(self, i);
-         // if this link cost is too high, pass on this neighbor
-         // TODO
-         // get this neighbor's advertized rank
-         neighborRank= neighbors_getNeighborRank(self, i);
-         // if this neighbor has unknown/infinite rank, pass on it
-         if (neighborRank==DEFAULTDAGRANK) continue;
-         // compute tentative cost of full path to root through this neighbor
-         tentativeDAGrank = (uint32_t)neighborRank+rankIncrease;
-         if (tentativeDAGrank > 65535) {tentativeDAGrank = 65535;}
-         // if not low enough to justify switch, pass (i.e. hysterisis)
-         //if ((previousDAGrank<tentativeDAGrank) ||
-         // next line is wrong, difference can be negative
-         //    (tentativeDAGrank-previousDAGrank < 2*MINHOPRANKINCREASE)) continue;
-         // remember that we have at least one valid candidate parent
-         foundBetterParent=TRUE;
-         // select best candidate so far
-         if ((self->icmpv6rpl_vars).myDAGrank>tentativeDAGrank) {
-            (self->icmpv6rpl_vars).myDAGrank    = (uint16_t)tentativeDAGrank;
-            (self->icmpv6rpl_vars).ParentIndex  = i;
-            (self->icmpv6rpl_vars).rankIncrease = rankIncrease;
-         }
-      }
-   } 
+    // if I'm a DAGroot, my DAGrank is always MINHOPRANKINCREASE
+    if (( idmanager_getIsDAGroot(self))==TRUE) {
+        // the dagrank is not set through setting command, set rank to MINHOPRANKINCREASE here 
+        if ((self->icmpv6rpl_vars).myDAGrank!=MINHOPRANKINCREASE) { // test for change so as not to report unchanged value when root
+            (self->icmpv6rpl_vars).myDAGrank=MINHOPRANKINCREASE;
+            return;
+        }
+    }
+    
+    // prep for loop, remember state before neighbor table scanning
+    prevParentIndex      = (self->icmpv6rpl_vars).ParentIndex;
+    prevHadParent        = (self->icmpv6rpl_vars).haveParent;
+    prevRankIncrease     = (self->icmpv6rpl_vars).rankIncrease;
+    // update my rank to current parent first
+    if ((self->icmpv6rpl_vars).haveParent==TRUE){
+        rankIncrease     = neighbors_getLinkMetric(self, (self->icmpv6rpl_vars).ParentIndex);
+        neighborRank     = neighbors_getNeighborRank(self, (self->icmpv6rpl_vars).ParentIndex);
+        tentativeDAGrank = (uint32_t)neighborRank+rankIncrease;
+        if (tentativeDAGrank>65535) {
+            (self->icmpv6rpl_vars).myDAGrank = 65535;
+        } else {
+            (self->icmpv6rpl_vars).myDAGrank = (uint16_t)tentativeDAGrank;
+        }
+    }
+    previousDAGrank      = (self->icmpv6rpl_vars).myDAGrank;
+    foundBetterParent    = FALSE;
+    (self->icmpv6rpl_vars).haveParent = FALSE;
+    
+    // loop through neighbor table, update myDAGrank
+    for (i=0;i<MAXNUMNEIGHBORS;i++) {
+        if ( neighbors_isStableNeighborByIndex(self, i)) { // in use and link is stable
+            // neighbor marked as NORES can't be parent
+            if ( neighbors_getNeighborNoResource(self, i)==TRUE) {
+                continue;
+            }
+            // get link cost to this neighbor
+            rankIncrease= neighbors_getLinkMetric(self, i);
+            // get this neighbor's advertized rank
+            neighborRank= neighbors_getNeighborRank(self, i);
+            // if this neighbor has unknown/infinite rank, pass on it
+            if (neighborRank==DEFAULTDAGRANK) continue;
+            // compute tentative cost of full path to root through this neighbor
+            tentativeDAGrank = (uint32_t)neighborRank+rankIncrease;
+            if (tentativeDAGrank > 65535) {tentativeDAGrank = 65535;}
+            // if not low enough to justify switch, pass (i.e. hysterisis)
+            if (
+                (previousDAGrank<tentativeDAGrank) ||
+                (previousDAGrank-tentativeDAGrank < 2*MINHOPRANKINCREASE)
+            ) {
+                  continue;
+            }
+            // remember that we have at least one valid candidate parent
+            foundBetterParent=TRUE;
+            // select best candidate so far
+            if ((self->icmpv6rpl_vars).myDAGrank>tentativeDAGrank) {
+                (self->icmpv6rpl_vars).myDAGrank    = (uint16_t)tentativeDAGrank;
+                (self->icmpv6rpl_vars).ParentIndex  = i;
+                (self->icmpv6rpl_vars).rankIncrease = rankIncrease;
+            }
+        }
+    }
    
    if (foundBetterParent) {
       (self->icmpv6rpl_vars).haveParent=TRUE;
       if (!prevHadParent) {
-         // only report on link creation
+         // in case preParent is killed before calling this function, clear the preferredParent flag
+ neighbors_setPreferredParent(self, prevParentIndex, FALSE);
+         // set neighbors as preferred parent
+ neighbors_setPreferredParent(self, (self->icmpv6rpl_vars).ParentIndex, TRUE);
       } else {
          if ((self->icmpv6rpl_vars).ParentIndex==prevParentIndex) {
-            // report on the rank change if any, not on the deletion/creation of parent
-               if ((self->icmpv6rpl_vars).myDAGrank!=previousDAGrank) {
-               } else ;// same parent, same rank, nothing to report about 
+             // report on the rank change if any, not on the deletion/creation of parent
+             if ((self->icmpv6rpl_vars).myDAGrank!=previousDAGrank) {
+             } else {
+                 // same parent, same rank, nothing to report about 
+             }
          } else {
-            // report on deletion of parent
-            // report on creation of new parent
+             // clear neighbors preferredParent flag
+ neighbors_setPreferredParent(self, prevParentIndex, FALSE);
+             // set neighbors as preferred parent
+ neighbors_setPreferredParent(self, (self->icmpv6rpl_vars).ParentIndex, TRUE);
          }
       }
    } else {
@@ -569,6 +594,7 @@ void sendDIO(OpenMote* self) {
    
    // set transport information
    msg->l4_protocol                         = IANA_ICMPv6;
+   msg->l4_protocol_compressed              = FALSE;
    msg->l4_sourcePortORicmpv6Type           = IANA_ICMPv6_RPL;
    
    // set DIO destination

@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:43:04.467443.
+This was done on 2017-02-14 21:19:01.167048.
 */
 #ifndef __IPHC_H
 #define __IPHC_H
@@ -85,7 +85,7 @@ enum NHC_UDP_enums {
 enum NHC_UDP_PORTS_enums {
    NHC_UDP_PORTS_INLINE      = 0,
    NHC_UDP_PORTS_16S_8D      = 1,
-   NHC_UDP_PORTS_8S_8D       = 2,
+   NHC_UDP_PORTS_8S_16D      = 2,
    NHC_UDP_PORTS_4S_4D       = 3,
 };
 

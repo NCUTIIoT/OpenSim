@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:40:27.813108.
+This was done on 2017-02-14 21:18:39.531000.
 */
 /**
 \brief CoAP 6top application

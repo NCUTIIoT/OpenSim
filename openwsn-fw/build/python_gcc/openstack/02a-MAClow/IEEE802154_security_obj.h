@@ -4,7 +4,7 @@ DO NOT EDIT DIRECTLY!!
 This file was 'objectified' by SCons as a pre-processing
 step for the building a Python extension module.
 
-This was done on 2016-11-14 22:40:26.211562.
+This was done on 2017-02-14 21:18:37.883646.
 */
 /**
 \brief Security operations defined by IEEE802.15.4 standard
@@ -99,6 +99,7 @@ typedef struct{
    m_macSecurityLevelTable MacSecurityLevelTable;
    uint8_t                 Key_1[16];
    uint8_t                 Key_2[16];
+   uint8_t                 minimal;
 } ieee802154_security_vars_t;
 
 extern const struct ieee802154_security_driver IEEE802154_security;
