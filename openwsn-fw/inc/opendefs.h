@@ -42,6 +42,7 @@ static const uint8_t infoStackName[] = "OpenWSN ";
 #define LENGTH_ADDR64b  8
 #define LENGTH_ADDR128b 16
 
+#define MAXNUMNEIGHBORS 10
 
 enum {
    E_SUCCESS                           = 0,
@@ -96,7 +97,10 @@ enum {
    WKP_UDP_ECHO                        =     7,
    WKP_UDP_INJECT                      =  2000,
    WKP_UDP_RINGMASTER                  = 15000,
+   WKP_UDP_SERIALBRIDGE                =  2001,
    WKP_UDP_TYPHOON                     = 15001,
+   WKP_UDP_BLIZZARD                    = 15002,
+   WKP_UDP_HURRICANE                   = 15003,
 };
 
 //status elements
@@ -171,7 +175,10 @@ enum {
    COMPONENT_UINJECT                   = 0x24,
    COMPONENT_RRT                       = 0x25,
    COMPONENT_SECURITY                  = 0x26,
-   COMPONENT_UTYPHOON                  = 0x27,
+   COMPONENT_USERIALBRIDGE             = 0x27,
+   COMPONENT_UTYPHOON                  = 0x28,
+   COMPONENT_UBLIZZARD                 = 0x29,
+   COMPONENT_UHURRICANE                = 0x2a,
 };
 
 /**
@@ -250,6 +257,7 @@ enum {
    ERR_SIXTOP_RETURNCODE               = 0x3c, // sixtop return code {0} at sixtop state {1}
    ERR_SIXTOP_COUNT                    = 0x3d, // there are {0} cells to request mote
    ERR_SIXTOP_LIST                     = 0x3e, // the cells reserved to request mote contains slot {0} and slot {1}
+   ERR_SCHEDULE_ADDDUPLICATESLOT       = 0x3f, // the slot {0} to be added is already in schedule
 };
 
 //=========================== typedef =========================================
@@ -334,6 +342,25 @@ typedef struct {
    //the packet
    uint8_t       packet[1+1+125+2+1];            // 1B spi address, 1B length, 125B data, 2B CRC, 1B LQI
 } OpenQueueEntry_t;
+
+BEGIN_PACK
+typedef struct {
+   bool             used;
+   uint8_t          parentPreference;
+   bool             stableNeighbor;
+   uint8_t          switchStabilityCounter;
+   open_addr_t      addr_64b;
+   dagrank_t        DAGrank;
+   int8_t           rssi;
+   uint8_t          numRx;
+   uint8_t          numTx;
+   uint8_t          numTxACK;
+   uint8_t          numWraps;//number of times the tx counter wraps. can be removed if memory is a restriction. also check openvisualizer then.
+   asn_t            asn;
+   uint8_t          joinPrio;
+   bool             f6PNORES;
+} neighborRow_t;
+END_PACK
 
 //=========================== variables =======================================
 

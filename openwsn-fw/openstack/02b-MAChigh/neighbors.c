@@ -9,6 +9,7 @@
 //=========================== variables =======================================
 
 static neighbors_vars_t neighbors_vars;
+addrParents_vars_t addrParents_vars;
 
 //=========================== prototypes ======================================
 
@@ -37,6 +38,10 @@ void neighbors_init() {
    memset(&neighbors_vars,0,sizeof(neighbors_vars_t));
    // The .used fields get reset to FALSE by this memset.
    
+   //EDIT(neold2022): Initialization for Dual Path, uhurricane
+   memset(&addrParents_vars,0,sizeof(addrParents_vars_t));
+   addrParents_vars.indexPrimary = MAXNUMNEIGHBORS;
+   addrParents_vars.indexBackup  = MAXNUMNEIGHBORS;
 }
 
 //===== getters
@@ -310,10 +315,18 @@ void neighbors_indicateTx(open_addr_t* l2_dest,
            }
          // update statistics
         neighbors_vars.neighbors[i].numTx += numTxAttempts; 
+
+        // EDIT(neold2022) for ublizzard
+        if (neighbors_vars.numTxTotal>(0xffffffff-numTxAttempts)) {
+           neighbors_vars.numTxTotal/=2;
+           neighbors_vars.numTxAckTotal/=2;
+        }
+        neighbors_vars.numTxTotal += numTxAttempts;
         
         if (was_finally_acked==TRUE) {
             neighbors_vars.neighbors[i].numTxACK++;
             memcpy(&neighbors_vars.neighbors[i].asn,asnTs,sizeof(asn_t));
+            neighbors_vars.numTxAckTotal++;
         }
         // #TODO : investigate this TX wrap thing! @incorrect in the meantime
         // DB (Nov 2015) I believe this is correct. The ratio numTx/numTxAck is still a correct approximation
@@ -471,6 +484,18 @@ void registerNewNeighbor(open_addr_t* address,
             if (joinPrioPresent==TRUE){
                neighbors_vars.neighbors[i].joinPrio=joinPrio;
             }
+
+            //EDIT(neold2022): for uhurricane
+            if(addrParents_vars.usedPrimary == TRUE){
+                if(packetfunctions_sameAddress(&(addrParents_vars.addrPrimary),&neighbors_vars.neighbors[i].addr_64b)) {
+                    addrParents_vars.indexPrimary = i;
+                }
+            }
+            if(addrParents_vars.usedBackup == TRUE){
+                if(packetfunctions_sameAddress(&(addrParents_vars.addrBackup),&neighbors_vars.neighbors[i].addr_64b)) {
+                    addrParents_vars.indexBackup = i;
+                }
+            }
             
             break;
          }
@@ -526,4 +551,163 @@ bool isThisRowMatching(open_addr_t* address, uint8_t rowNumber) {
                                (errorparameter_t)3);
          return FALSE;
    }
+}
+
+
+
+// uhurricane
+
+void neighbors_get3parents(uint8_t* ptr){
+	uint8_t   i;
+	uint8_t   numNeighbors;
+
+	numNeighbors = 0;
+	for (i=0; i<MAXNUMNEIGHBORS; i++) {
+		if (neighbors_vars.neighbors[i].used==TRUE){
+	        memcpy( ptr,&(neighbors_vars.neighbors[i].addr_64b.addr_64b),LENGTH_ADDR64b);
+	        ptr += LENGTH_ADDR64b;
+	        memcpy( ptr,&(neighbors_vars.neighbors[i].DAGrank),sizeof(dagrank_t));
+	        ptr += sizeof(dagrank_t);
+	        memcpy( ptr,&(neighbors_vars.neighbors[i].numTx),sizeof(uint8_t));
+	        ptr += sizeof(uint8_t);
+	        memcpy( ptr,&(neighbors_vars.neighbors[i].numTxACK),sizeof(uint8_t));
+	        ptr += sizeof(uint8_t);
+
+	        numNeighbors++;
+	        if(numNeighbors>3)
+	        	break;
+		}
+	}
+}
+
+void neighbors_set2parents(uint8_t* ptr, uint8_t num){
+    uint8_t i;
+
+    addrParents_vars.indexPrimary = MAXNUMNEIGHBORS;
+    addrParents_vars.indexBackup  = MAXNUMNEIGHBORS;
+	if(num==2){
+		memcpy(&addrParents_vars.addrPrimary, ptr  , LENGTH_ADDR64b);
+		memcpy(&addrParents_vars.addrBackup , ptr+8, LENGTH_ADDR64b);
+        addrParents_vars.usedPrimary = TRUE;
+		addrParents_vars.usedBackup  = TRUE;
+
+	}
+	else if(num==1){
+		memcpy(&addrParents_vars.addrPrimary, ptr, LENGTH_ADDR64b);
+        memset(&addrParents_vars.addrBackup , 0, LENGTH_ADDR64b);
+        addrParents_vars.usedPrimary = TRUE;
+		addrParents_vars.usedBackup  = FALSE;
+	}
+	else{
+		memset(&addrParents_vars.addrPrimary, 0, LENGTH_ADDR64b);
+        memset(&addrParents_vars.addrBackup , 0, LENGTH_ADDR64b);
+        addrParents_vars.usedPrimary = FALSE;
+		addrParents_vars.usedBackup  = FALSE;
+	}
+
+    //EDIT(neold2022): Update neighbor indexes
+    for(i=0;i<MAXNUMNEIGHBORS;i+=1) {
+        if(neighbors_vars.neighbors[i].used) {
+            if(packetfunctions_sameAddress(
+                &addrParents_vars.addrPrimary,
+                &neighbors_vars.neighbors[i].addr_64b)
+            ) {
+                addrParents_vars.indexPrimary = i;
+            }
+            if(packetfunctions_sameAddress(
+                &addrParents_vars.addrBackup,
+                &neighbors_vars.neighbors[i].addr_64b)
+            ) {
+                addrParents_vars.indexBackup  = i;
+            }
+        }
+    }
+}
+
+void neighbors_get_retrial_statistics(uint32_t* num1, uint32_t* num2) {
+	memcpy(num1,&neighbors_vars.numTxTotal,4);
+	memcpy(num2,&neighbors_vars.numTxAckTotal,4);
+}
+
+// Dual Path
+bool neighbors_fromv6rpl_getBackupParentEui64(open_addr_t* addressToWrite, uint8_t addr_type, uint8_t* ParentIndex) {
+   uint8_t   i;
+   uint8_t   numNeighbors;
+   dagrank_t minRankVal;
+   uint8_t   minRankIdx;
+   
+   addressToWrite->type = ADDR_NONE;
+   
+   numNeighbors         = 0;
+   minRankVal           = MAXDAGRANK;
+   minRankIdx           = MAXNUMNEIGHBORS+1;
+
+   //===== step 1. Try to find preferred parent
+   for (i=0; i<MAXNUMNEIGHBORS; i++) {
+      if (neighbors_vars.neighbors[i].used==TRUE){
+         if (neighbors_vars.neighbors[i].parentPreference!=0 && (*ParentIndex) == i) {
+            //if(neighbors_getNeighborNoResource(i)){
+               // EDIT(neold2022):
+               // It's a Ok call from module icmpv6rpl,
+               // since icmpv6rpl does not allow neighbor without resource to be a preferred parent
+            //}
+            //else {
+               // EDIT(neold2022):
+               // That weird, I got a preferred parent already.
+               // Does not need to find a backup one.
+               return FALSE;
+            //}
+         }
+         // identify neighbor with lowest rank
+         if (neighbors_vars.neighbors[i].DAGrank < minRankVal) {
+            minRankVal=neighbors_vars.neighbors[i].DAGrank;
+            minRankIdx=i;
+         }
+         numNeighbors++;
+      }
+   }
+   
+   //===== step 2. (backup) Promote neighbor with min rank to preferred parent
+   if (numNeighbors > 0){
+      // promote neighbor
+      neighbors_vars.neighbors[minRankIdx].parentPreference       = TRUE; // EDIT(neold2022): 'MAXPREFERENCE' is deprecated in newer version
+      neighbors_vars.neighbors[minRankIdx].stableNeighbor         = TRUE;
+      neighbors_vars.neighbors[minRankIdx].switchStabilityCounter = 0;
+      // return its address
+      memcpy(addressToWrite,&(neighbors_vars.neighbors[minRankIdx].addr_64b),sizeof(open_addr_t));
+      addressToWrite->type=ADDR_64B; 
+      *ParentIndex = minRankIdx; // EDIT(neold2022): Update ParentIndex in icmpv6rpl
+   }
+   else return FALSE; //No Neighbor
+   
+   return TRUE;
+}
+
+// uhurricane
+
+bool neighbors_getPrimary(open_addr_t* addressToWrite) {
+   if(addrParents_vars.usedPrimary == TRUE){
+       if(addrParents_vars.indexPrimary <= MAXNUMNEIGHBORS) {
+           if(neighbors_isStableNeighborByIndex(addrParents_vars.indexPrimary)) {
+               memcpy(&addressToWrite->addr_64b,&(addrParents_vars.addrPrimary),LENGTH_ADDR64b);
+	           addressToWrite->type = ADDR_64B;
+	           return TRUE;
+           }
+       }
+   }
+   return FALSE;
+}
+
+bool neighbors_getBackup(open_addr_t* addressToWrite) {
+   if(addrParents_vars.usedBackup == TRUE){
+       if(addrParents_vars.indexBackup <= MAXNUMNEIGHBORS) {
+           if(neighbors_isStableNeighborByIndex(addrParents_vars.indexBackup)) {
+               memcpy(&addressToWrite->addr_64b,&(addrParents_vars.addrBackup),LENGTH_ADDR64b);
+               addressToWrite->type = ADDR_64B;
+               return TRUE;
+           }
+       }
+   }
+
+   return FALSE;
 }

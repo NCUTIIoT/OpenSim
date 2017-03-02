@@ -9,6 +9,9 @@
 #include "uecho.h"
 #include "uinject.h"
 #include "rrt.h"
+#include "utyphoon.h"
+#include "ublizzard.h"
+#include "uhurricane.h"
 
 //=========================== variables =======================================
 
@@ -49,7 +52,13 @@ void openudp_sendDone(OpenQueueEntry_t* msg, owerror_t error) {
          rrt_sendDone(msg, error);
          break;
       case WKP_UDP_TYPHOON:
-         utyphoon_sendDone(msg,error);
+         utyphoon_sendDone(msg, error);
+         break;
+      case WKP_UDP_BLIZZARD:
+         ublizzard_sendDone(msg, error);
+         break;
+      case WKP_UDP_HURRICANE:
+         uhurricane_sendDone(msg, error);
          break;
       default:
          openserial_printError(COMPONENT_OPENUDP,ERR_UNSUPPORTED_PORT_NUMBER,
@@ -122,6 +131,12 @@ void openudp_receive(OpenQueueEntry_t* msg) {
          break;
       case WKP_UDP_TYPHOON:
          utyphoon_receive(msg);
+         break;
+      case WKP_UDP_BLIZZARD:
+         ublizzard_receive(msg);
+         break;
+      case WKP_UDP_HURRICANE:
+         uhurricane_receive(msg);
          break;
       default:
          openserial_printError(COMPONENT_OPENUDP,ERR_UNSUPPORTED_PORT_NUMBER,
